@@ -3,14 +3,159 @@
 <head>
     <title>Voting System with Admin</title>
     <style>
-        /* CSS styles remain the same */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #1557b0;
+        }
+        .input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .input:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+        .option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        .option:hover {
+            background: #f1f3f4;
+        }
+        .vote-count {
+            color: #5f6368;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+        .error {
+            background: #fce8e8;
+            color: #d93025;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .success {
+            background: #e6f4ea;
+            color: #137333;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .admin-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .vote-log {
+            margin-top: 10px;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .vote-entry {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        h1, h2, h3 {
+            margin: 0;
+            color: #202124;
+        }
+        h1 { font-size: 24px; }
+        h2 { font-size: 20px; }
+        h3 { font-size: 16px; }
+        #shareMessage {
+            display: none;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- HTML structure remains the same -->
+        <div class="header">
+            <h1>Voting System</h1>
+            <button id="shareButton" class="button">Share Link</button>
+        </div>
+        <div id="shareMessage" class="success">Link copied!</div>
+        <div id="registerForm">
+        <h2>Register New User</h2>
+        <input type="text" id="newUsername" placeholder="Choose username" class="input">
+        <input type="password" id="newPassword" placeholder="Choose password" class="input">
+        <button onclick="register()" class="button">Register</button>
+        <div id="registerError" class="error" style="display: none;"></div>
+        <button onclick="showLogin()" class="button">Already have account? Login</button>
     </div>
-    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"></script>
+
+    <div id="loginForm" style="display: none;">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username" class="input">
+        <input type="password" id="password" placeholder="Password" class="input">
+        <button onclick="login()" class="button">Login</button>
+        <div id="loginError" class="error" style="display: none;"></div>
+        <button onclick="showRegister()" class="button">Need an account? Register</button>
+    </div>
+
+    <div id="votingSection" style="display: none;">
+        <div class="header">
+            <span>Welcome, <span id="userDisplay"></span>!</span>
+            <button onclick="logout()" class="button">Logout</button>
+        </div>
+        
+        <input type="text" id="searchInput" placeholder="Search options..." class="input">
+        <div id="optionsList"></div>
+    </div>
+
+    <div id="adminPanel" style="display: none;" class="admin-panel">
+        <h2>Admin Panel</h2>
+        <h3>Vote History</h3>
+        <button onclick="clearVoteHistory()" class="button">Clear History</button>
+        <div id="voteLog" class="vote-log"></div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js"></script>
 <script>
     // Firebase configuration
@@ -26,8 +171,7 @@
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    firebase.initializeApp(firebaseConfig);
 
     let isLoggedIn = false;
     let isAdmin = false;
@@ -168,6 +312,16 @@
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('registerForm').style.display = 'block';
         document.getElementById('userDisplay').textContent = '';
+    }
+
+    function showLogin() {
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+    }
+
+    function showRegister() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
     }
 
     document.getElementById('searchInput')?.addEventListener('input', loadOptions);
