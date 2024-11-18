@@ -1,161 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Voting System with Admin</title>
+    <title>Voting System with Firebase</title>
     <style>
+        /* Simplified CSS */
         body {
             font-family: Arial, sans-serif;
             max-width: 600px;
             margin: 40px auto;
-            padding: 20px;
-            background: #f0f2f5;
         }
         .container {
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
+            padding: 20px;
         }
         .button {
             background: #1a73e8;
             color: white;
             border: none;
             padding: 10px 20px;
-            border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-        .button:hover {
-            background: #1557b0;
-        }
-        .input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        .input:focus {
-            outline: none;
-            border-color: #1a73e8;
         }
         .option {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
             margin: 10px 0;
-            background: #f8f9fa;
-            border-radius: 5px;
-            transition: background 0.2s;
-        }
-        .option:hover {
-            background: #f1f3f4;
-        }
-        .vote-count {
-            color: #5f6368;
-            margin-left: 10px;
-            font-size: 14px;
-        }
-        .error {
-            background: #fce8e8;
-            color: #d93025;
-            padding: 12px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-size: 14px;
-        }
-        .success {
-            background: #e6f4ea;
-            color: #137333;
-            padding: 12px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-size: 14px;
-        }
-        .admin-panel {
-            margin-top: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-        .vote-log {
-            margin-top: 10px;
-            font-size: 14px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .vote-entry {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-        }
-        h1, h2, h3 {
-            margin: 0;
-            color: #202124;
-        }
-        h1 { font-size: 24px; }
-        h2 { font-size: 20px; }
-        h3 { font-size: 16px; }
-        #shareMessage {
-            display: none;
-            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Voting System</h1>
-            <button id="shareButton" class="button">Share Link</button>
+        <h1>Voting System</h1>
+        <div id="loginSection">
+            <h2>Login</h2>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button id="loginButton" class="button">Login</button>
         </div>
-        <div id="shareMessage" class="success">Link copied!</div>
-        <div id="registerForm">
-        <h2>Register New User</h2>
-        <input type="text" id="newUsername" placeholder="Choose username" class="input">
-        <input type="password" id="newPassword" placeholder="Choose password" class="input">
-        <button onclick="register()" class="button">Register</button>
-        <div id="registerError" class="error" style="display: none;"></div>
-        <button onclick="showLogin()" class="button">Already have account? Login</button>
-    </div>
-
-    <div id="loginForm" style="display: none;">
-        <h2>Login</h2>
-        <input type="text" id="username" placeholder="Username" class="input">
-        <input type="password" id="password" placeholder="Password" class="input">
-        <button onclick="login()" class="button">Login</button>
-        <div id="loginError" class="error" style="display: none;"></div>
-        <button onclick="showRegister()" class="button">Need an account? Register</button>
-    </div>
-
-    <div id="votingSection" style="display: none;">
-        <div class="header">
-            <span>Welcome, <span id="userDisplay"></span>!</span>
-            <button onclick="logout()" class="button">Logout</button>
+        <div id="votingSection" style="display: none;">
+            <h2>Vote</h2>
+            <div id="optionsList"></div>
+            <button id="logoutButton" class="button">Logout</button>
         </div>
-        
-        <input type="text" id="searchInput" placeholder="Search options..." class="input">
-        <div id="optionsList"></div>
     </div>
-
-    <div id="adminPanel" style="display: none;" class="admin-panel">
-        <h2>Admin Panel</h2>
-        <h3>Vote History</h3>
-        <button onclick="clearVoteHistory()" class="button">Clear History</button>
-        <div id="voteLog" class="vote-log"></div>
-    </div>
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js"></script>
 <script>
     // Firebase configuration
@@ -169,171 +54,76 @@
         appId: "1:339768050801:web:8e64cf389c3930a90087d0",
         measurementId: "G-B6PSYQ1JV1"
     };
-
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
 
-    let isLoggedIn = false;
-    let isAdmin = false;
-    const ADMIN_USERNAME = 'admin';
-    const ADMIN_PASSWORD = 'admin123';
-    let options = [
-        { id: 1, title: 'Option 1', votes: 0 },
-        { id: 2, title: 'Option 2', votes: 0 },
-        { id: 3, title: 'Option 3', votes: 0 }
-    ];
+    const loginSection = document.getElementById('loginSection');
+    const votingSection = document.getElementById('votingSection');
+    const loginButton = document.getElementById('loginButton');
+    const logoutButton = document.getElementById('logoutButton');
+    const optionsList = document.getElementById('optionsList');
 
-    function vote(id) {
-        if (!isLoggedIn) return;
+    let userId = null;
 
-        const user = document.getElementById('userDisplay').textContent;
-
-        // Increment vote count in Firebase
-        firebase.database().ref('votes/' + id).transaction((currentVotes) => {
-            return (currentVotes || 0) + 1;
-        });
-
-        // Save vote history
-        const voteEntry = {
-            timestamp: new Date().toISOString(),
-            user: user,
-            optionId: id
-        };
-        firebase.database().ref('voteHistory').push(voteEntry);
-
-        loadOptions();
-    }
-
-    function loadOptions() {
-        const list = document.getElementById('optionsList');
-        list.innerHTML = '';
-
-        // Fetch votes from Firebase
-        firebase.database().ref('votes').once('value', (snapshot) => {
-            const votes = snapshot.val() || {};
-
-            options.forEach((option) => {
-                const div = document.createElement('div');
-                div.className = 'option';
-                const voteCount = votes[option.id] || 0; // Default to 0 if no votes recorded
-
-                div.innerHTML = `
-                    <span>${option.title} <span class="vote-count">(${voteCount} votes)</span></span>
-                    <button onclick="vote(${option.id})" class="button">Vote</button>
-                `;
-                list.appendChild(div);
-            });
-        });
-    }
-
-    function loadVoteHistory() {
-        if (!isAdmin) return;
-
-        const logElement = document.getElementById('voteLog');
-        logElement.innerHTML = '';
-
-        // Fetch vote history from Firebase
-        firebase.database().ref('voteHistory').once('value', (snapshot) => {
-            const history = snapshot.val() || {};
-
-            Object.values(history).forEach((entry) => {
-                const div = document.createElement('div');
-                div.className = 'vote-entry';
-                const date = new Date(entry.timestamp).toLocaleString();
-                div.textContent = `${date} - User "${entry.user}" voted for option ID "${entry.optionId}"`;
-                logElement.appendChild(div);
-            });
-        });
-    }
-
-    function clearVoteHistory() {
-        if (!isAdmin) return;
-
-        if (confirm('Are you sure you want to clear all vote history?')) {
-            firebase.database().ref('voteHistory').remove();
-            loadVoteHistory();
-        }
-    }
-
-    function register() {
-        const username = document.getElementById('newUsername').value;
-        const password = document.getElementById('newPassword').value;
-
-        if (!username || !password) {
-            alert('Please fill in both fields.');
-            return;
-        }
-
-        if (username === ADMIN_USERNAME) {
-            alert('Cannot register as admin.');
-            return;
-        }
-
-        // Store user in Firebase
-        firebase.database().ref('users/' + username).set({
-            password: password
-        });
-
-        alert(`User ${username} registered successfully.`);
-    }
-
-    function login() {
+    loginButton.addEventListener('click', () => {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
 
         firebase.database().ref('users/' + username).once('value', (snapshot) => {
             const user = snapshot.val();
 
-            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-                isAdmin = true;
-                isLoggedIn = true;
-                document.getElementById('adminPanel').style.display = 'block';
-            } else if (user && user.password === password) {
-                isLoggedIn = true;
+            if (user && user.password === password) {
+                userId = username;
+                loginSection.style.display = 'none';
+                votingSection.style.display = 'block';
+                loadOptions();
             } else {
                 alert('Invalid credentials.');
-                return;
             }
+        });
+    });
 
-            document.getElementById('registerForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('votingSection').style.display = 'block';
-            document.getElementById('userDisplay').textContent = username;
-            loadOptions();
-            loadVoteHistory();
+    logoutButton.addEventListener('click', () => {
+        userId = null;
+        loginSection.style.display = 'block';
+        votingSection.style.display = 'none';
+    });
+
+    function loadOptions() {
+        firebase.database().ref('options').once('value', (snapshot) => {
+            const options = snapshot.val();
+
+            optionsList.innerHTML = '';
+
+            for (const optionId in options) {
+                const option = options[optionId];
+                const optionElement = document.createElement('div');
+                optionElement.className = 'option';
+                optionElement.textContent = `${option.title} (${option.votes} votes)`;
+
+                const voteButton = document.createElement('button');
+                voteButton.textContent = 'Vote';
+                voteButton.className = 'button';
+                voteButton.addEventListener('click', () => {
+                    voteForOption(optionId);
+                });
+
+                optionElement.appendChild(voteButton);
+                optionsList.appendChild(optionElement);
+            }
         });
     }
 
-    function logout() {
-        isLoggedIn = false;
-        isAdmin = false;
-        document.getElementById('adminPanel').style.display = 'none';
-        document.getElementById('votingSection').style.display = 'none';
-        document.getElementById('loginForm').style.display = 'block';
-        document.getElementById('registerForm').style.display = 'block';
-        document.getElementById('userDisplay').textContent = '';
+    function voteForOption(optionId) {
+        firebase.database().ref('options/' + optionId + '/votes').transaction((currentVotes) => {
+            return (currentVotes || 0) + 1;
+        }).then(() => {
+            firebase.database().ref('votes').push({
+                userId: userId,
+                optionId: optionId,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+            loadOptions();
+        });
     }
-
-    function showLogin() {
-        document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('loginForm').style.display = 'block';
-    }
-
-    function showRegister() {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('registerForm').style.display = 'block';
-    }
-
-    document.getElementById('searchInput')?.addEventListener('input', loadOptions);
-
-    document.getElementById('shareButton')?.addEventListener('click', () => {
-        navigator.clipboard.writeText(window.location.href);
-        document.getElementById('shareMessage').style.display = 'block';
-        setTimeout(() => {
-            document.getElementById('shareMessage').style.display = 'none';
-        }, 3000);
-    });
-
-    // Initial load
-    loadOptions();
 </script>
