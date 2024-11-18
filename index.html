@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Voting System</title>
+    <title>Voting System with Admin</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -83,11 +83,28 @@
             margin: 10px 0;
             font-size: 14px;
         }
-        h1 {
+        .admin-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .vote-log {
+            margin-top: 10px;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .vote-entry {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        h1, h2 {
             margin: 0;
             color: #202124;
-            font-size: 24px;
         }
+        h1 { font-size: 24px; }
+        h2 { font-size: 20px; }
         #shareMessage {
             display: none;
             margin-top: 10px;
@@ -102,11 +119,22 @@
         </div>
         <div id="shareMessage" class="success">Link copied!</div>
 
-        <div id="loginForm">
-            <input type="text" id="username" placeholder="Username (use: demo)" class="input">
-            <input type="password" id="password" placeholder="Password (use: password)" class="input">
+        <div id="registerForm">
+            <h2>Register New User</h2>
+            <input type="text" id="newUsername" placeholder="Choose username" class="input">
+            <input type="password" id="newPassword" placeholder="Choose password" class="input">
+            <button onclick="register()" class="button">Register</button>
+            <div id="registerError" class="error" style="display: none;"></div>
+            <button onclick="showLogin()" class="button">Already have account? Login</button>
+        </div>
+
+        <div id="loginForm" style="display: none;">
+            <h2>Login</h2>
+            <input type="text" id="username" placeholder="Username" class="input">
+            <input type="password" id="password" placeholder="Password" class="input">
             <button onclick="login()" class="button">Login</button>
             <div id="loginError" class="error" style="display: none;"></div>
+            <button onclick="showRegister()" class="button">Need an account? Register</button>
         </div>
 
         <div id="votingSection" style="display: none;">
@@ -116,53 +144,113 @@
             </div>
             
             <input type="text" id="searchInput" placeholder="Search options..." class="input">
-            
             <div id="optionsList"></div>
+        </div>
+
+        <div id="adminPanel" style="display: none;" class="admin-panel">
+            <h2>Admin Panel</h2>
+            <h3>Vote History</h3>
+            <button onclick="clearVoteHistory()" class="button">Clear History</button>
+            <div id="voteLog" class="vote-log"></div>
         </div>
     </div>
 
     <script>
         let isLoggedIn = false;
+        let isAdmin = false;
+        const ADMIN_USERNAME = 'admin';
+        const ADMIN_PASSWORD = 'admin123';
         let voteId = window.location.pathname.split('/')[1] || 'default';
+        let users = JSON.parse(localStorage.getItem('users') || '{"demo": "password"}');
         let options = [
             { id: 1, title: 'Option 1', votes: 0 },
             { id: 2, title: 'Option 2', votes: 0 },
             { id: 3, title: 'Option 3', votes: 0 }
         ];
+        let voteHistory = JSON.parse(localStorage.getItem('voteHistory') || '[]');
+
+        function register() {
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            
+            if (!username || !password) {
+                document.getElementById('registerError').textContent = 'Please fill in all fields';
+                document.getElementById('registerError').style.display = 'block';
+                return;
+            }
+
+            if (username === ADMIN_USERNAME || users[username]) {
+                document.getElementById('registerError').textContent = 'Username already exists';
+                document.getElementById('registerError').style.display = 'block';
+                return;
+            }
+
+            users[username] = password;
+            localStorage.setItem('users', JSON.stringify(users));
+            
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+            login();
+        }
 
         function login() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const error = document.getElementById('loginError');
 
-            if (username === 'demo' && password === 'password') {
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
                 isLoggedIn = true;
+                isAdmin = true;
                 document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('registerForm').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
                 document.getElementById('votingSection').style.display = 'block';
+                document.getElementById('userDisplay').textContent = 'Admin';
+                loadVoteHistory();
+            } else if (users[username] === password) {
+                isLoggedIn = true;
+                isAdmin = false;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('registerForm').style.display = 'none';
+                document.getElementById('votingSection').style.display = 'block';
+                document.getElementById('adminPanel').style.display = 'none';
                 document.getElementById('userDisplay').textContent = username;
-                error.style.display = 'none';
-                loadOptions();
             } else {
-                error.textContent = 'Invalid credentials. Use demo/password';
-                error.style.display = 'block';
+                document.getElementById('loginError').textContent = 'Invalid credentials';
+                document.getElementById('loginError').style.display = 'block';
+                return;
             }
+            loadOptions();
         }
 
         function logout() {
             isLoggedIn = false;
-            document.getElementById('loginForm').style.display = 'block';
+            isAdmin = false;
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('loginForm').style.display = 'none';
             document.getElementById('votingSection').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
         }
 
         function vote(id) {
             if (!isLoggedIn) return;
+            
             const option = options.find(opt => opt.id === id);
             if (option) {
                 option.votes++;
+                const voteEntry = {
+                    timestamp: new Date().toISOString(),
+                    user: document.getElementById('userDisplay').textContent,
+                    option: option.title,
+                    voteId: voteId
+                };
+                voteHistory.push(voteEntry);
+                localStorage.setItem('voteHistory', JSON.stringify(voteHistory));
+                
                 loadOptions();
                 saveOptions();
+                if (isAdmin) loadVoteHistory();
             }
         }
 
@@ -186,6 +274,40 @@
             });
         }
 
+        function loadVoteHistory() {
+            if (!isAdmin) return;
+            
+            const logElement = document.getElementById('voteLog');
+            logElement.innerHTML = '';
+            
+            voteHistory.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = 'vote-entry';
+                const date = new Date(entry.timestamp).toLocaleString();
+                div.textContent = `${date} - User "${entry.user}" voted for "${entry.option}"`;
+                logElement.appendChild(div);
+            });
+        }
+
+        function clearVoteHistory() {
+            if (!isAdmin) return;
+            if (confirm('Are you sure you want to clear all vote history?')) {
+                voteHistory = [];
+                localStorage.setItem('voteHistory', JSON.stringify(voteHistory));
+                loadVoteHistory();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+        }
+
         function saveOptions() {
             localStorage.setItem(`votes-${voteId}`, JSON.stringify(options));
         }
@@ -202,8 +324,8 @@
             options = JSON.parse(saved);
         }
 
-        document.getElementById('searchInput').addEventListener('input', loadOptions);
-        document.getElementById('shareButton').addEventListener('click', () => {
+        document.getElementById('searchInput')?.addEventListener('input', loadOptions);
+        document.getElementById('shareButton')?.addEventListener('click', () => {
             navigator.clipboard.writeText(window.location.href);
             showShareMessage();
         });
