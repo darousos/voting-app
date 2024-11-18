@@ -155,42 +155,123 @@
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js"></script>
     <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvh3FmKnK6Ys0JsaDIt5vETlD95uE4ZQ0",
+            authDomain: "votingsystem-9a303.firebaseapp.com",
+            databaseURL: "https://votingsystem-9a303-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "votingsystem-9a303",
+            storageBucket: "votingsystem-9a303.firebasestorage.app",
+            messagingSenderId: "339768050801",
+            appId: "1:339768050801:web:8e64cf389c3930a90087d0",
+            measurementId: "G-B6PSYQ1JV1"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
         let isLoggedIn = false;
         let isAdmin = false;
         const ADMIN_USERNAME = 'admin';
         const ADMIN_PASSWORD = 'admin123';
-        let voteId = window.location.pathname.split('/')[1] || 'default';
-        let users = JSON.parse(localStorage.getItem('users') || '{"demo": "password"}');
         let options = [
             { id: 1, title: 'Option 1', votes: 0 },
             { id: 2, title: 'Option 2', votes: 0 },
             { id: 3, title: 'Option 3', votes: 0 }
         ];
-        let voteHistory = JSON.parse(localStorage.getItem('voteHistory') || '[]');
+
+        function vote(id) {
+            if (!isLoggedIn) return;
+
+            const user = document.getElementById('userDisplay').textContent;
+
+            // Increment vote count in Firebase
+            firebase.database().ref(votes/${id}).transaction((currentVotes) => {
+                return (currentVotes || 0) + 1;
+            });
+
+            // Save vote history
+            const voteEntry = {
+                timestamp: new Date().toISOString(),
+                user: user,
+                optionId: id
+            };
+            firebase.database().ref('voteHistory').push(voteEntry);
+
+            loadOptions();
+        }
+
+        function loadOptions() {
+            const list = document.getElementById('optionsList');
+            list.innerHTML = '';
+
+            // Fetch votes from Firebase
+            firebase.database().ref('votes').once('value', (snapshot) => {
+                const votes = snapshot.val() || {};
+
+                options.forEach((option) => {
+                    const div = document.createElement('div');
+                    div.className = 'option';
+                    const voteCount = votes[option.id] || 0; // Default to 0 if no votes recorded
+
+                    div.innerHTML = `
+                        <span>${option.title} <span class="vote-count">(${voteCount} votes)</span></span>
+                        <button onclick="vote(${option.id})" class="button">Vote</button>
+                    `;
+                    list.appendChild(div);
+                });
+            });
+        }
+
+        function loadVoteHistory() {
+            if (!isAdmin) return;
+
+            const logElement = document.getElementById('voteLog');
+            logElement.innerHTML = '';
+
+            // Fetch vote history from Firebase
+            firebase.database().ref('voteHistory').once('value', (snapshot) => {
+                const history = snapshot.val() || {};
+
+                Object.values(history).forEach((entry) => {
+                    const div = document.createElement('div');
+                    div.className = 'vote-entry';
+                    const date = new Date(entry.timestamp).toLocaleString();
+                    div.textContent = `${date} - User "${entry.user}" voted for option ID "${entry.optionId}"`;
+                    logElement.appendChild(div);
+                });
+            });
+        }
+
+        function clearVoteHistory() {
+            if (!isAdmin) return;
+
+            if (confirm('Are you sure you want to clear all vote history?')) {
+                firebase.database().ref('voteHistory').remove();
+                loadVoteHistory();
+            }
+        }
 
         function register() {
             const username = document.getElementById('newUsername').value;
             const password = document.getElementById('newPassword').value;
-            
+
             if (!username || !password) {
-                document.getElementById('registerError').textContent = 'Please fill in all fields';
-                document.getElementById('registerError').style.display = 'block';
+                alert('Please fill in both fields.');
                 return;
             }
 
-            if (username === ADMIN_USERNAME || users[username]) {
-                document.getElementById('registerError').textContent = 'Username already exists';
-                document.getElementById('registerError').style.display = 'block';
+            if (username === ADMIN_USERNAME) {
+                alert('Cannot register as admin.');
                 return;
             }
 
-            users[username] = password;
-            localStorage.setItem('users', JSON.stringify(users));
-            
-            document.getElementById('username').value = username;
-            document.getElementById('password').value = password;
-            login();
+            // Simulate storing user credentials locally for now
+            alert(`User ${username} registered successfully.`);
         }
 
         function login() {
@@ -198,137 +279,42 @@
             const password = document.getElementById('password').value;
 
             if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-                isLoggedIn = true;
                 isAdmin = true;
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('registerForm').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
-                document.getElementById('votingSection').style.display = 'block';
-                document.getElementById('userDisplay').textContent = 'Admin';
-                loadVoteHistory();
-            } else if (users[username] === password) {
                 isLoggedIn = true;
-                isAdmin = false;
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('registerForm').style.display = 'none';
-                document.getElementById('votingSection').style.display = 'block';
-                document.getElementById('adminPanel').style.display = 'none';
-                document.getElementById('userDisplay').textContent = username;
+                document.getElementById('adminPanel').style.display = 'block';
             } else {
-                document.getElementById('loginError').textContent = 'Invalid credentials';
-                document.getElementById('loginError').style.display = 'block';
-                return;
+                alert('Invalid credentials.');
             }
+
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('votingSection').style.display = 'block';
+            document.getElementById('userDisplay').textContent = username;
             loadOptions();
         }
 
         function logout() {
             isLoggedIn = false;
             isAdmin = false;
-            document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('votingSection').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'none';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-        }
-
-        function vote(id) {
-            if (!isLoggedIn) return;
-            
-            const option = options.find(opt => opt.id === id);
-            if (option) {
-                option.votes++;
-                const voteEntry = {
-                    timestamp: new Date().toISOString(),
-                    user: document.getElementById('userDisplay').textContent,
-                    option: option.title,
-                    voteId: voteId
-                };
-                voteHistory.push(voteEntry);
-                localStorage.setItem('voteHistory', JSON.stringify(voteHistory));
-                
-                loadOptions();
-                saveOptions();
-                if (isAdmin) loadVoteHistory();
-            }
-        }
-
-        function loadOptions() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const filteredOptions = options.filter(opt => 
-                opt.title.toLowerCase().includes(search)
-            );
-            
-            const list = document.getElementById('optionsList');
-            list.innerHTML = '';
-            
-            filteredOptions.forEach(option => {
-                const div = document.createElement('div');
-                div.className = 'option';
-                div.innerHTML = `
-                    <span>${option.title} <span class="vote-count">(${option.votes} votes)</span></span>
-                    <button onclick="vote(${option.id})" class="button">Vote</button>
-                `;
-                list.appendChild(div);
-            });
-        }
-
-        function loadVoteHistory() {
-            if (!isAdmin) return;
-            
-            const logElement = document.getElementById('voteLog');
-            logElement.innerHTML = '';
-            
-            voteHistory.forEach(entry => {
-                const div = document.createElement('div');
-                div.className = 'vote-entry';
-                const date = new Date(entry.timestamp).toLocaleString();
-                div.textContent = `${date} - User "${entry.user}" voted for "${entry.option}"`;
-                logElement.appendChild(div);
-            });
-        }
-
-        function clearVoteHistory() {
-            if (!isAdmin) return;
-            if (confirm('Are you sure you want to clear all vote history?')) {
-                voteHistory = [];
-                localStorage.setItem('voteHistory', JSON.stringify(voteHistory));
-                loadVoteHistory();
-            }
-        }
-
-        function showLogin() {
-            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('votingSection').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
-        }
-
-        function showRegister() {
-            document.getElementById('loginForm').style.display = 'none';
             document.getElementById('registerForm').style.display = 'block';
-        }
-
-        function saveOptions() {
-            localStorage.setItem(`votes-${voteId}`, JSON.stringify(options));
-        }
-
-        function showShareMessage() {
-            const msg = document.getElementById('shareMessage');
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
-        }
-
-        // Initialize
-        const saved = localStorage.getItem(`votes-${voteId}`);
-        if (saved) {
-            options = JSON.parse(saved);
+            document.getElementById('userDisplay').textContent = '';
         }
 
         document.getElementById('searchInput')?.addEventListener('input', loadOptions);
+
         document.getElementById('shareButton')?.addEventListener('click', () => {
             navigator.clipboard.writeText(window.location.href);
-            showShareMessage();
+            document.getElementById('shareMessage').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('shareMessage').style.display = 'none';
+            }, 3000);
         });
+
+        // Initial load
+        loadOptions();
     </script>
 </body>
 </html>
