@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Voting System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #1557b0;
+        }
+        .input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .input:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+        .option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        .option:hover {
+            background: #f1f3f4;
+        }
+        .vote-count {
+            color: #5f6368;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+        .error {
+            background: #fce8e8;
+            color: #d93025;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .success {
+            background: #e6f4ea;
+            color: #137333;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        h1 {
+            margin: 0;
+            color: #202124;
+            font-size: 24px;
+        }
+        #shareMessage {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Voting System</h1>
+            <button id="shareButton" class="button">Share Link</button>
+        </div>
+        <div id="shareMessage" class="success">Link copied!</div>
+
+        <div id="loginForm">
+            <input type="text" id="username" placeholder="Username (use: demo)" class="input">
+            <input type="password" id="password" placeholder="Password (use: password)" class="input">
+            <button onclick="login()" class="button">Login</button>
+            <div id="loginError" class="error" style="display: none;"></div>
+        </div>
+
+        <div id="votingSection" style="display: none;">
+            <div class="header">
+                <span>Welcome, <span id="userDisplay"></span>!</span>
+                <button onclick="logout()" class="button">Logout</button>
+            </div>
+            
+            <input type="text" id="searchInput" placeholder="Search options..." class="input">
+            
+            <div id="optionsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let isLoggedIn = false;
+        let voteId = window.location.pathname.split('/')[1] || 'default';
+        let options = [
+            { id: 1, title: 'Option 1', votes: 0 },
+            { id: 2, title: 'Option 2', votes: 0 },
+            { id: 3, title: 'Option 3', votes: 0 }
+        ];
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const error = document.getElementById('loginError');
+
+            if (username === 'demo' && password === 'password') {
+                isLoggedIn = true;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('votingSection').style.display = 'block';
+                document.getElementById('userDisplay').textContent = username;
+                error.style.display = 'none';
+                loadOptions();
+            } else {
+                error.textContent = 'Invalid credentials. Use demo/password';
+                error.style.display = 'block';
+            }
+        }
+
+        function logout() {
+            isLoggedIn = false;
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('votingSection').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        function vote(id) {
+            if (!isLoggedIn) return;
+            const option = options.find(opt => opt.id === id);
+            if (option) {
+                option.votes++;
+                loadOptions();
+                saveOptions();
+            }
+        }
+
+        function loadOptions() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filteredOptions = options.filter(opt => 
+                opt.title.toLowerCase().includes(search)
+            );
+            
+            const list = document.getElementById('optionsList');
+            list.innerHTML = '';
+            
+            filteredOptions.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.innerHTML = `
+                    <span>${option.title} <span class="vote-count">(${option.votes} votes)</span></span>
+                    <button onclick="vote(${option.id})" class="button">Vote</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function saveOptions() {
+            localStorage.setItem(`votes-${voteId}`, JSON.stringify(options));
+        }
+
+        function showShareMessage() {
+            const msg = document.getElementById('shareMessage');
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        }
+
+        // Initialize
+        const saved = localStorage.getItem(`votes-${voteId}`);
+        if (saved) {
+            options = JSON.parse(saved);
+        }
+
+        document.getElementById('searchInput').addEventListener('input', loadOptions);
+        document.getElementById('shareButton').addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href);
+            showShareMessage();
+        });
+    </script>
+</body>
+</html>
